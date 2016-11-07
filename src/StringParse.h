@@ -1,34 +1,10 @@
+#pragma  once
 #include <string> 
-#include <cassert>
 #include <vector>
 #include <map>
 #include <unordered_map>
 
 using namespace std;
-
-#define STRING_PARSE(...) \
-void ToObject(const string& s, int indent)\
-{\
-	ToObject(indent, s, __VA_ARGS__); \
-}\
-template<typename... Args>\
-void ToObject(int indent, const string& s, Args&... args)\
-{\
-	std::tuple<Args&...>& t = std::tuple<Args&...>(args...); \
-	static string s_indentSplit[] = { ",", "|", ":", ";", "^" }; \
-	auto ss = StringParse::split(s, s_indentSplit[indent]); \
-	StringParse::ParseTuple<std::tuple<Args&...>, sizeof...(Args)-1>::ToObject(ss, t, indent); \
-}\
-string ToString(int indent) const\
-{\
-	return ToString(indent, __VA_ARGS__);\
-}\
-template<typename... Args>\
-string ToString(int indent, const Args&... args)const\
-{\
-	const std::tuple<const Args&...>& t = std::tuple<const Args&...>(args...);\
-	return StringParse::ParseTuple<const std::tuple<const Args&...>, sizeof...(Args)-1>::ToString(t, indent);\
-}
 
 namespace StringParse{
 	//·Ö¸î×Ö·û´®
@@ -208,7 +184,29 @@ namespace StringParse{
 			return StringParse::ToString(std::get<0>(t), indent+1);
 		}
 	};
+}
 
-	
-	
+
+#define STRING_PARSE(...) \
+void ToObject(const string& s, int indent)\
+{\
+	ToObject(indent, s, __VA_ARGS__); \
+}\
+template<typename... Args>\
+void ToObject(int indent, const string& s, Args&... args)\
+{\
+	std::tuple<Args&...>& t = std::tuple<Args&...>(args...); \
+	static string s_indentSplit[] = { ",", "|", ":", ";", "^" }; \
+	auto ss = StringParse::split(s, s_indentSplit[indent]); \
+	StringParse::ParseTuple<std::tuple<Args&...>, sizeof...(Args)-1>::ToObject(ss, t, indent); \
+}\
+string ToString(int indent) const\
+{\
+	return ToString(indent, __VA_ARGS__);\
+}\
+template<typename... Args>\
+string ToString(int indent, const Args&... args)const\
+{\
+	const std::tuple<const Args&...>& t = std::tuple<const Args&...>(args...);\
+	return StringParse::ParseTuple<const std::tuple<const Args&...>, sizeof...(Args)-1>::ToString(t, indent);\
 }
