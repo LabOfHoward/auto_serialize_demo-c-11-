@@ -39,6 +39,18 @@ namespace StringParse{
 	template<> string ToString(const float& v, int indent){ return  to_string(v); }
 	template<> string ToString(const bool& v, int indent){ return  v ? "true" : "false"; }
 	template<> string ToString(const string& v, int indent){ return  v; }
+	template<typename T, typename... Args>
+	string ToString(int indent, int idx, const T &t, const Args&... args) {
+		static string s_indentSplit[] = { ",", "|", ":", ";", "^" };
+		string s = ToString(t, indent + 1);
+		s += s_indentSplit[indent + 1];
+		s +=ToString(indent, idx+1,args...);//递归
+		return s;
+	}
+	template<typename T>
+	string ToString(int indent, int idx, const T &t) {//这里可能和上面的(const int& v, int indent)冲突，所以加多个idx参数
+		return ToString(t, indent + 1);
+	}
 	template<typename T>
 	string ToString(const std::vector<T>& v, int indent=0){//虽然同样只有一个模板参数，但是c++编译器处理vector<T>的时候会优先识别这个而不是T
 		static string s_indentSplit[] = { ",", "|", ":", ";", "^" };
@@ -97,6 +109,16 @@ namespace StringParse{
 	template<> void ToObject(const string& s, float& v, int indent){ v = stof(s); }
 	template<> void ToObject(const string& s, bool& v, int indent){ v = s == "true" || s == "1"; }
 	template<> void ToObject(const string& s, string& v, int indent){ v = s; }
+	template<typename T,typename... Args>
+	void ToObject(int indent, vector<string> & ss,int idx,T &t, Args&... args)	{
+		ToObject(indent, ss, idx+1, args...);//递归
+		ToObject(ss[idx], t,indent+1);
+	}
+	template<typename T>
+	void ToObject(int indent, vector<string> & ss, int idx, T &t) {
+		ToObject(ss[idx], t, indent + 1);
+	}
+
 	template<typename T>
 	void ToObject(const string& s, std::vector<T>& v, int indent = 0){//虽然同样只有一个模板参数，但是c++编译器处理vector<T>的时候会优先识别这个而不是T
 		static string s_indentSplit[] = { ",", "|", ":", ";", "^" };
@@ -155,58 +177,54 @@ namespace StringParse{
 			v[key] = value;
 		}
 	}
+	
 
-	//元组解析类，这里不弄成函数是因为只有类才可以偏特化
-	template <typename Tuple, std::size_t N>
-	struct ParseTuple {
-		static void ToObject(vector<string> & ss, Tuple& t, int indent)
-		{
-			ParseTuple<Tuple, N - 1>::ToObject(ss, t, indent);
-			if (N < ss.size())
-				StringParse::ToObject(ss[N], std::get<N>(t), indent+1);
-		}
+	////元组解析类
+	//template <typename Tuple, std::size_t N>
+	//struct ParseTuple {
+	//	static void ToObject(vector<string> & ss, Tuple& t, int indent)
+	//	{
+	//		ParseTuple<Tuple, N - 1>::ToObject(ss, t, indent);
+	//		if (N < ss.size())
+	//			StringParse::ToObject(ss[N], std::get<N>(t), indent+1);
+	//	}
 
-		static string ToString( Tuple& t,int indent){
-			static string s_indentSplit[] = { ",", "|", ":", ";", "^" };
-			string s1 = ParseTuple<Tuple, N - 1>::ToString( t, indent);
-			string s2= StringParse::ToString( std::get<N>(t), indent + 1);
-			return s1 + s_indentSplit[indent ] + s2;
-		}
-	};
+	//	static string ToString( Tuple& t,int indent){
+	//		static string s_indentSplit[] = { ",", "|", ":", ";", "^" };
+	//		string s1 = ParseTuple<Tuple, N - 1>::ToString( t, indent);
+	//		string s2= StringParse::ToString( std::get<N>(t), indent + 1);
+	//		return s1 + s_indentSplit[indent ] + s2;
+	//	}
+	//};
 
-	template <typename Tuple>
-	struct ParseTuple<Tuple, 0> {
-		static void ToObject(vector<string> & ss, Tuple& t, int indent)
-		{
-			StringParse::ToObject(ss[0], std::get<0>(t), indent+1);
-		}
-		static string ToString( Tuple& t,int indent){
-			return StringParse::ToString(std::get<0>(t), indent+1);
-		}
-	};
+	//template <typename Tuple>
+	//struct ParseTuple<Tuple, 0> {
+	//	static void ToObject(vector<string> & ss, Tuple& t, int indent)
+	//	{
+	//		StringParse::ToObject(ss[0], std::get<0>(t), indent+1);
+	//	}
+	//	static string ToString( Tuple& t,int indent){
+	//		return StringParse::ToString(std::get<0>(t), indent+1);
+	//	}
+	//};
+	//template<typename... Args> string ToString(int indent, const Args&... args)const
+	//{
+		//const std::tuple<const Args&...>& t = std::tuple<const Args&...>(args...);
+		//return StringParse::ParseTuple<const std::tuple<const Args&...>, sizeof...(Args)-1>::ToString(t, indent);
+	//}
 }
 
 
 #define STRING_PARSE(...) \
 void ToObject(const string& s, int indent)\
 {\
-	ToObject(indent, s, __VA_ARGS__); \
-}\
-template<typename... Args>\
-void ToObject(int indent, const string& s, Args&... args)\
-{\
-	std::tuple<Args&...>& t = std::tuple<Args&...>(args...); \
 	static string s_indentSplit[] = { ",", "|", ":", ";", "^" }; \
 	auto ss = StringParse::split(s, s_indentSplit[indent]); \
-	StringParse::ParseTuple<std::tuple<Args&...>, sizeof...(Args)-1>::ToObject(ss, t, indent); \
+	if (ss.size() == 0)\
+		return; \
+	StringParse::ToObject(indent, ss,0,__VA_ARGS__);\
 }\
 string ToString(int indent) const\
 {\
-	return ToString(indent, __VA_ARGS__);\
-}\
-template<typename... Args>\
-string ToString(int indent, const Args&... args)const\
-{\
-	const std::tuple<const Args&...>& t = std::tuple<const Args&...>(args...);\
-	return StringParse::ParseTuple<const std::tuple<const Args&...>, sizeof...(Args)-1>::ToString(t, indent);\
+	return StringParse::ToString(indent,0, __VA_ARGS__);\
 }

@@ -6,6 +6,7 @@ struct SubTest
 {
 	int a;
 
+	
 	STRING_PARSE(a);
 };
 
@@ -30,7 +31,6 @@ int main()
 	StringParse::ToObject<Test>(str, test);
 	std::cout << StringParse::ToString(test) << std::endl;
 	
-
 	system("pause");
 	return 0;
 }
